@@ -2,6 +2,8 @@ import sys
 import pandas as pd
 import numpy as np
 import re
+import os
+from email.parser import Parser
 from sys import argv
 from nltk.tokenize import word_tokenize
 from nltk import pos_tag
@@ -14,17 +16,38 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn import model_selection, naive_bayes
 from sklearn.metrics import accuracy_score
 
+trainDataNum = 20  #num per class in traindata
+
 class NaiveBayes:
 	def __init__(self,trainFile):
 		self.trainFile = trainFile
-		self.trainData = self.readData(trainFile)
+		self.labels,self.trainData = self.readData(trainFile)
+		print self.labels
+		
 
-	def readData(self,file):
+	def readData(self,filePath):
 		data = []
-		fd = open(file)
-		for line in fd.readlines():
-			data.append(line)
-		return data
+		os.chdir(filePath)
+		fileChdir = os.getcwd()
+		labels = os.listdir(fileChdir)
+		fileList = []
+		for di in labels:  #pass every subdir in the trainData
+			i = 0
+			for root,dirs,files in os.walk(di):
+				for fi in files:
+					if i < trainDataNum:
+						fileList.append(fi)
+					i = i + 1
+		i = 0	
+		for fi in fileList:
+			fd = open(labels[i/trainDataNum] +'/' +  fi)
+			msg = Parser().parse(fd)
+			for part in msg.walk():
+				emailBody = part.get_payload(decode=True)	
+			data.append(emailBody)
+			i = i + 1
+
+		return labels,data
 	def preprocessData(self):
 		# remove the blank line
 		# todo
@@ -59,17 +82,25 @@ class NaiveBayes:
 #		print(word)
 #		print(tag)
 #		print(wordTemp)
+	
+	def baseProb(self):
+		basePro = []
+		for i in self.labels:
+			basePro.append(1.0/len(self.labels))
+		print basePro
+		return basePro
 		
 
 #def main(trainFiles,testFile):
 def main():
-	naiveB = NaiveBayes("/home/jacksonsang/Downloads/20news-bydate/20news-bydate/20news-bydate-train/alt.atheism/51173")
+	naiveB = NaiveBayes("./20news-bydate/20news-bydate-train/")
 	naiveB.preprocessData()
+	naiveB.baseProb()
 	
 	
 
 
-	print(naiveB.trainData[:16])
+	print(naiveB.trainData[:3])
 
 if __name__ == "__main__":
 #	if len(argv) != 3:
