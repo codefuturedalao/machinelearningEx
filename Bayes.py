@@ -29,6 +29,7 @@ class NaiveBayes:
 
 	def readData(self,filePath):
 		data = []
+		originFileDir = os.getcwd()
 		os.chdir(filePath)
 		fileChdir = os.getcwd()
 		labels = os.listdir(fileChdir)
@@ -38,18 +39,18 @@ class NaiveBayes:
 			i = 0
 			for root,dirs,files in os.walk(di):
 				for fi in files:
-					if i < trainDataNum:
-						fileList.append(fi)
-						trainLabels.append(di)
-					i = i + 1
+					fileList.append(fi)
+					trainLabels.append(di)
 		i = 0	
 		for fi in fileList:
-			fd = open(labels[i/trainDataNum] +'/' +  fi)
+			fd = open(trainLabels[i] +'/' +  fi)
 			msg = Parser().parse(fd)
 			for part in msg.walk():
 				emailBody = part.get_payload(decode=True)	
 			data.append(emailBody)
 			i = i + 1
+		#change to the origin dir
+		os.chdir(originFileDir)
 
 		return trainLabels,labels,data
 	def preprocessData(self):
@@ -145,11 +146,13 @@ class NaiveBayes:
 def main():
 	naiveB = NaiveBayes("./20news-bydate/20news-bydate-train/")
 	naiveB.preprocessData()
-	Train_X,Test_X,Train_Y,Test_Y = model_selection.train_test_split(naiveB.trainData,naiveB.trainLabels,test_size=0.25)
-	Base_p = naiveB.baseProb(Train_Y)
-	word_dt = naiveB.word_prob(Train_X,Train_Y)
-	ret = naiveB.predict(Test_X,word_dt,Base_p)	
-	print(classification_report(Test_Y,ret))	
+	testNaiveB = NaiveBayes("./20news-bydate/20news-bydate-test/")
+	testNaiveB.preprocessData()
+
+	Base_p = naiveB.baseProb(naiveB.trainLabels)
+	word_dt = naiveB.word_prob(naiveB.trainData,naiveB.trainLabels)
+	ret = naiveB.predict(testNaiveB.trainData,word_dt,Base_p)	
+	print(classification_report(testNaiveB.trainLabels,ret))	
 
 
 #	print(naiveB.trainData[:3])
