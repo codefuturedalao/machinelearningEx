@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import re
 import os
-import math
 from email.parser import Parser
 from sys import argv
 from nltk.tokenize import word_tokenize
@@ -16,15 +15,13 @@ from nltk.corpus import wordnet as wn
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn import model_selection, naive_bayes
 from sklearn.metrics import accuracy_score
-from sklearn.metrics import classification_report 
 
 trainDataNum = 300  #num per class in traindata
 
 class NaiveBayes:
 	def __init__(self,trainFile):
 		self.trainFile = trainFile
-		self.trainLabels,self.labels,self.trainData = self.readData(trainFile)
-		#print self.labels
+		self.labels,self.trainData = self.readData(trainFile)
 		
 
 	def readData(self,filePath):
@@ -32,7 +29,7 @@ class NaiveBayes:
 		os.chdir(filePath)
 		fileChdir = os.getcwd()
 		labels = os.listdir(fileChdir)
-		trainLabels = []
+		finalLabels = []
 		fileList = []
 		for di in labels:  #pass every subdir in the trainData
 			i = 0
@@ -40,7 +37,7 @@ class NaiveBayes:
 				for fi in files:
 					if i < trainDataNum:
 						fileList.append(fi)
-						trainLabels.append(di)
+						finalLabels.append(di)
 					i = i + 1
 		i = 0	
 		for fi in fileList:
@@ -51,23 +48,25 @@ class NaiveBayes:
 			data.append(emailBody)
 			i = i + 1
 
-		return trainLabels,labels,data
+		return finalLabels,data
 	def preprocessData(self):
+		d = {'text_final':self.trainData,'labels':self.labels}
+		data = pd.DataFrame(data=d)
 		# remove the blank line
+		data['text_final'].dropna(inplace=True)	
 		# todo
 		# change all the text to the lowe case. and remove all the punctuation
 		rule = re.compile("[^a-zA-Z\d ]")
-		for i in range(len(self.trainData)):
-			self.trainData[i] = re.sub("[^a-zA-Z\d ]",'',self.trainData[i].lower())	
+		for i in range(data.size/2):
+			data.loc[i,'text_final'] = re.sub("[^a-zA-Z\d ]",'',data.loc[i,'text_final'].lower())
 
-		self.trainData = [word_tokenize(entry) for entry in self.trainData]
+		data['text_final'] = [word_tokenize(entry) for entry in data['text_final']]
 		# remove stop word, Non-Numeric and perfor Word Stemming/Lemmenting
 		tag_map = defaultdict(lambda : wn.NOUN)
 		tag_map['J'] = wn.ADJ
 		tag_map['V'] = wn.VERB
 		tag_map['R'] = wn.ADV
-		i = 0
-		for index,entry in enumerate(self.trainData):
+		for index,entry in enumerate(data['text_final']):
 			Final_words = []
 			word_Lemmatized = WordNetLemmatizer()
 			for word,tag in pos_tag(entry):
@@ -76,83 +75,67 @@ class NaiveBayes:
 					Final_words.append(word_Final)
 #			if i < 5:
 #				print(word_Final)
-			self.trainData[i] = Final_words
-			i = i + 1
-		#print len(self.trainData)	
-#		postemp = pos_tag(['women','lines'])
-#		word = postemp[0][0]
-#		tag = postemp[0][1]
-#		wordTemp = word_Lemmatized.lemmatize(word,tag_map[tag[0]])
-#		print(postemp)
-#		print(word)
-#		print(tag)
-#		print(wordTemp)
+			data.loc[index,'text_final'] = str(Final_words)
+
+		self.trainData = data
 	
-	def baseProb(self,labels):	
-		basePro = [i for i  in range(20)]
-		for i in labels:
-			index = self.labels.index(i)
-			basePro[index] += 1
-		basePro = [i/float(len(labels)) for i in basePro]
-		#print basePro
+	def process(self):
+		Train_X,Test_X,Train_Y,Test_Y = model_selection.train_test_split(self.trainData['text_final'],self.trainData['labels'],test_size=0.3)
+		#print(Train_Y)
+		Encoder = LabelEncoder()
+		Train_Y = Encoder.fit_transform(Train_Y)
+		Test_Y = Encoder.fit_transform(Test_Y)
+		#print(Train_X)
+		#print(Train_Y)
+		Tfidf_vect = TfidfVectorizer(max_features=5000)
+		Tfidf_vect.fit(self.trainData['text_final'])
+		#print(Tfidf_vect.vocabulary)
+		Train_X_Tfidf = Tfidf_vect.transform(Train_X)
+		Test_X_Tfidf = Tfidf_vect.transform(Test_X)
+		#print(Train_X_Tfidf)
+		#print(Test_X_Tfidf)
+		Naive = naive_bayes.MultinomialNB()
+		Naive.fit(Train_X_Tfidf,Train_Y)
+		
+		predictions_NB = Naive.predict(Test_X_Tfidf)
+
+		print("Naive Bayes Accuracy Score -> ",accuracy_score(predictions_NB,Test_Y) * 100)
+
+	def baseProb(self):
+		basePro = []
+		for i in self.labels:
+			basePro.append(1.0/len(self.labels))
+		print basePro
 		return basePro
 	
-	def word_prob(self,data,labels):
-		n = len(data)
+	def word_prob(self):
+		n = len(self.trainData)
 		#create dic
 		word_dict = {} 
 		i = 0	
 		for i in range(n):
-			lab = labels[i]
-			dat = list(set(data[i]))
+			dat = list(set(self.trainData[i]))
 			
 			for word in dat:
 				if word not in word_dict:
 					word_dict[word] = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-				index = self.labels.index(lab)
-				word_dict[word][index] += 1
-		sum_array = []
-		for i in range(20):
-			sum_temp = 0
-			for key,values in word_dict.items():
-				sum_temp += values[i]		
-			sum_array.append(sum_temp)
-		for i in word_dict:
-			dt = word_dict[i]
-			for j in range(20):
-				word_dict[i][j] = word_dict[i][j] / float(sum_array[j])
-		return word_dict
-		
-	#	print word_dict[i]	
-	def predict(self,samples,word_prob,base_p):
-		prop = [i for i in range(20)]
-		ret = []
-		for sam in samples:
-			for i in range(20):
-				prop[i] = math.log(base_p[i])
-			for word in sam:
-				if word not in word_prob:
-					continue
-				for j in range(20):
-					prop[j] += math.log(word_prob[word][j])
-			index = prop.index(max(prop)) 
-			ret.append(self.labels[index])
-		return ret
-				
+				word_dict[word][i/trainDataNum] += 1
+		print word_dict
+		#for i in word_dict:
+#			dt = word_dict[i]
+#			word_dict[i] = 
+			
 		
 
 #def main(trainFiles,testFile):
 def main():
 	naiveB = NaiveBayes("./20news-bydate/20news-bydate-train/")
 	naiveB.preprocessData()
-	Train_X,Test_X,Train_Y,Test_Y = model_selection.train_test_split(naiveB.trainData,naiveB.trainLabels,test_size=0.25)
-	Base_p = naiveB.baseProb(Train_Y)
-	word_dt = naiveB.word_prob(Train_X,Train_Y)
-	ret = naiveB.predict(Test_X,word_dt,Base_p)	
-	print(classification_report(Test_Y,ret))	
+	naiveB.process()
+	
+	
 
 
-#	print(naiveB.trainData[:3])
 
 if __name__ == "__main__":
 #	if len(argv) != 3:
