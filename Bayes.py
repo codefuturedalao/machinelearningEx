@@ -54,8 +54,6 @@ class NaiveBayes:
 
 		return trainLabels,labels,data
 	def preprocessData(self):
-		# remove the blank line
-		# todo
 		# change all the text to the lowe case. and remove all the punctuation
 		rule = re.compile("[^a-zA-Z\d ]")
 		for i in range(len(self.trainData)):
@@ -79,15 +77,6 @@ class NaiveBayes:
 #				print(word_Final)
 			self.trainData[i] = Final_words
 			i = i + 1
-		#print len(self.trainData)	
-#		postemp = pos_tag(['women','lines'])
-#		word = postemp[0][0]
-#		tag = postemp[0][1]
-#		wordTemp = word_Lemmatized.lemmatize(word,tag_map[tag[0]])
-#		print(postemp)
-#		print(word)
-#		print(tag)
-#		print(wordTemp)
 	
 	def baseProb(self,labels):	
 		basePro = [i for i  in range(20)]
@@ -121,7 +110,7 @@ class NaiveBayes:
 		for i in word_dict:
 			dt = word_dict[i]
 			for j in range(20):
-				word_dict[i][j] = word_dict[i][j] / float(sum_array[j])
+				word_dict[i][j] = word_dict[i][j] / (float(sum_array[j]) + len(word_dict)) #multinomial
 		return word_dict
 		
 	#	print word_dict[i]	
