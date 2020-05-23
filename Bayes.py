@@ -78,15 +78,6 @@ class NaiveBayes:
 			self.trainData[i] = Final_words
 			i = i + 1
 	
-	def baseProb(self,labels):	
-		basePro = [i for i  in range(20)]
-		for i in labels:
-			index = self.labels.index(i)
-			basePro[index] += 1
-		basePro = [i/float(len(labels)) for i in basePro]
-		#print basePro
-		return basePro
-	
 	def word_prob(self,data,labels):
 		n = len(data)
 		#create dic
@@ -107,11 +98,14 @@ class NaiveBayes:
 			for key,values in word_dict.items():
 				sum_temp += values[i]		
 			sum_array.append(sum_temp)
+		basePro = []
+		for i in range(20):
+			basePro.append(sum_array[i]/float(sum(sum_array)))	
 		for i in word_dict:
 			dt = word_dict[i]
 			for j in range(20):
 				word_dict[i][j] = word_dict[i][j] / (float(sum_array[j]) + len(word_dict)) #multinomial
-		return word_dict
+		return word_dict,basePro
 		
 	#	print word_dict[i]	
 	def predict(self,samples,word_prob,base_p):
@@ -138,8 +132,8 @@ def main():
 	testNaiveB = NaiveBayes("./20news-bydate/20news-bydate-test/")
 	testNaiveB.preprocessData()
 
-	Base_p = naiveB.baseProb(naiveB.trainLabels)
-	word_dt = naiveB.word_prob(naiveB.trainData,naiveB.trainLabels)
+	#Base_p = naiveB.baseProb(naiveB.trainLabels)
+	word_dt,Base_p = naiveB.word_prob(naiveB.trainData,naiveB.trainLabels)
 	ret = naiveB.predict(testNaiveB.trainData,word_dt,Base_p)	
 	print(classification_report(testNaiveB.trainLabels,ret))	
 

@@ -22,10 +22,11 @@ from sklearn.metrics import classification_report
 cateNum = 20
 trainDataNumPerCate = 250 
 studyRate = 1
-K = 25
+K = 10 
 
 class Perception:
 	def __init__(self,trainFilePath,testFilePath):
+		self.DataNumPerCate = [390,390,380,390,390,390,390,250,390,390,390,310,380,390,390,390,390,370,310,360]
 		self.trainLabels,self.trainLabel,self.trainData = self.readData(trainFilePath)
 		self.testLabels,self.testLabel,self.testData = self.readData(testFilePath)
 
@@ -37,14 +38,19 @@ class Perception:
 		labels = os.listdir(fileChdir)
 		trainLabels = []
 		fileList = []
+		j = 0
 		for di in labels:  #pass every subdir in the trainData
 			i = 0
 			for root,dirs,files in os.walk(di):
 				for fi in files:
-					if i < trainDataNumPerCate:
+#					i += 1
+					
+					if i < self.DataNumPerCate[j]:
 						fileList.append(fi)
 						trainLabels.append(di)
 					i = i + 1
+			j += 1
+					
 		i = 0	
 		for fi in fileList:
 			fd = open(trainLabels[i] +'/' +  fi)
@@ -114,9 +120,11 @@ class Perception:
 			train_X.append(x)
 		#print train_X
 		#print n
+		maxBoundary = 0
+		minBoundary = -self.DataNumPerCate[0] / K
 		for i in range(cateNum):
-			maxBoundary = (i+1) * trainDataNumPerCate / K
-			minBoundary = i * trainDataNumPerCate / K
+			maxBoundary += self.DataNumPerCate[i] / K
+			minBoundary += self.DataNumPerCate[i] / K
 			trainSequence =[]
 			trainNum = 0
 			totalNum = 0
